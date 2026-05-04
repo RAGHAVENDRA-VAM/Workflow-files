@@ -32,6 +32,27 @@ jobs:
         with:
           name: build-output
           path: dist/
+  test:
+    name: Run Unit Tests
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install Dependencies
+        run: npm ci
+      - name: Run Unit Tests
+        run: npm test -- --reporters=jest-junit
+      - name: Save Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results
+          path: junit.xml
   sast:
     name: Security Scan
     needs: test
@@ -63,29 +84,6 @@ jobs:
         with:
           name: sast-reports
           path: '*.sarif'
-  test:
-    name: Run Unit Tests
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          cache: npm
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Install Dependencies
-        run: npm ci
-      - name: Run Unit Tests
-        run: npm test -- --reporters=jest-junit
-      - if: always()
-        name: Publish Test Results
-        uses: dorny/test-reporter@v1
-        with:
-          name: Node.js Tests
-          path: junit.xml
-          reporter: jest-junit
   publish:
     name: Publish Artifact
     needs: sast
