@@ -1,0 +1,103 @@
+name: Node.js CI Pipeline
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - develop
+env:
+  ARTIFACT_NAME: Workflow-files-drop
+  NODE_VERSION: 20.x
+  PROJECT_NAME: Workflow-files
+jobs:
+  build:
+    name: Build Node.js Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install Dependencies
+        run: npm ci
+      - name: Build Application
+        run: npm run build
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+  sast:
+    name: Security Scan
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: "Gitleaks — Secret Detection"
+        uses: gitleaks/gitleaks-action@v2
+      - continue-on-error: true
+        name: "Semgrep — Code Analysis"
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: auto
+      - continue-on-error: true
+        name: "Trivy — Dependency & FS Scan"
+        uses: aquasecurity/trivy-action@master
+        with:
+          format: sarif
+          output: trivy-results.sarif
+          scan-ref: .
+          scan-type: fs
+      - if: always()
+        name: Upload SAST Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-reports
+          path: '*.sarif'
+  test:
+    name: Run Unit Tests
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install Dependencies
+        run: npm ci
+      - name: Run Unit Tests
+        run: npm test -- --reporters=jest-junit
+      - if: always()
+        name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        with:
+          name: Node.js Tests
+          path: junit.xml
+          reporter: jest-junit
+  publish:
+    name: Publish Artifact
+    needs: sast
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+      - name: Publish Workflow-files Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: dist/
