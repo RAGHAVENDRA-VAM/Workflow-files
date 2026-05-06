@@ -16,26 +16,26 @@ variable "resource_group_name" {
   default     = "hari_check1"
 }
 
-variable "app_service_plan" {
-  description = "App Service Plan configuration"
-  type = object({
-    name     = string
-    sku      = string
-    location = string
-  })
-  default = {
-    name     = "insureflow-plan"
-    sku      = "B1"
-    location = "eastus"
-  }
+variable "sku_name" {
+  description = "App Service Plan SKU (e.g., B1, B2, S1, P1v3, P2v3)"
+  type        = string
+  default     = "B1"
 }
 
-# The rest of the variables remain unchanged unless specific updates are needed.
+variable "os_type" {
+  description = "OS type: Linux or Windows"
+  type        = string
+  default     = "Linux"
+}
 
-# Note: If you need to instantiate resources, ensure the following:
-# - Use var.app_service_plan.name for the app service plan name
-# - Use var.app_service_plan.sku for the SKU
-# - Reference var.resource_group_name for the resource group
-# - Use var.location for location parameters
+variable "worker_count" {
+  description = "Number of workers in the App Service Plan"
+  type        = number
+  default     = 1
+}
 
-# Since only variable updates are requested, the above reflects the necessary changes.
+variable "zone_balancing_enabled" {
+  description = "Enable zone balancing (requires Premium SKU)"
+  type        = bool
+  default     = false
+}
