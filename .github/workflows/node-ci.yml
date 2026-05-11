@@ -9,7 +9,7 @@ on:
     branches:
       - main
 env:
-  NODE_VERSION: '20.x'
+  NODE_VERSION: 20.x
   PROJECT_NAME: Shashank-Repo
   ARTIFACT_NAME: Shashank-Repo-drop
 jobs:
@@ -22,8 +22,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - name: Install Dependencies
         run: npm ci
       - name: Build Application
@@ -43,8 +43,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - name: Install Dependencies
         run: npm ci
       - name: Run Unit Tests
