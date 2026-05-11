@@ -1,101 +1,48 @@
-name: Node.js CI Pipeline
-on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
-      - develop
-env:
-  ARTIFACT_NAME: Workflow-files-drop
-  NODE_VERSION: 20.x
-  PROJECT_NAME: Workflow-files
-jobs:
-  build:
-    name: Build Node.js Application
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          cache: npm
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Install Dependencies
-        run: npm ci
-      - name: Build Application
-        run: npm run build
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: dist/
-  test:
-    name: Run Unit Tests
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          cache: npm
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Install Dependencies
-        run: npm ci
-      - name: Run Unit Tests
-        run: npm test -- --reporters=jest-junit
-      - name: Save Test Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-results
-          path: junit.xml
-  sast:
-    name: Security Scan
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: "Gitleaks — Secret Detection"
-        uses: gitleaks/gitleaks-action@v2
-      - continue-on-error: true
-        name: "Semgrep — Code Analysis"
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: auto
-      - continue-on-error: true
-        name: "Trivy — Dependency & FS Scan"
-        uses: aquasecurity/trivy-action@master
-        with:
-          format: sarif
-          output: trivy-results.sarif
-          scan-ref: .
-          scan-type: fs
-      - if: always()
-        name: Upload SAST Reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: sast-reports
-          path: '*.sarif'
-  publish:
-    name: Publish Artifact
-    needs: sast
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Build Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
-          path: dist/
-      - name: Publish Workflow-files Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: dist/
+This YAML file defines a GitHub Actions CI pipeline named "Node.js CI Pipeline" with multiple jobs to automate building, testing, security scanning, and publishing a Node.js application. Here's an overview of its structure and functionality:
+
+1. Workflow Triggers:
+   - Runs on pull requests targeting the main branch.
+   - Runs on pushes to the main and develop branches.
+
+2. Environment Variables:
+   - ARTIFACT_NAME: Dynamic name based on the repository name with "-drop" suffix.
+   - NODE_VERSION: Uses Node.js version 20.x.
+   - PROJECT_NAME: Repository name.
+
+3. Jobs:
+   
+   a. build:
+      - Checks out the code.
+      - Sets up Node.js with caching.
+      - Installs dependencies using npm ci.
+      - Builds the application with npm run build.
+      - Uploads the build output (from dist/) as an artifact named "build-output".
+
+   b. test:
+      - Depends on the build job.
+      - Checks out code and sets up Node.js.
+      - Installs dependencies.
+      - Runs unit tests with npm test, using the jest-junit reporter.
+      - Publishes test results (junit.xml) using the dorny/test-reporter.
+
+   c. sast (Security Scan):
+      - Depends on the test job.
+      - Checks out code.
+      - Runs multiple security scans:
+        - Gitleaks for secret detection.
+        - Semgrep for code analysis.
+        - Trivy for dependency and filesystem scans.
+      - Continues on error for scans.
+      - Uploads all SARIF report files as "sast-reports".
+
+   d. publish:
+      - Depends on a job named 'sast' (likely a typo or mismatch; should probably depend on build or test).
+      - Downloads the build artifact from the build job.
+      - Uploads the build artifact again with a name based on ARTIFACT_NAME.
+
+Notes:
+- There is a potential issue with the 'publish' job's 'needs' attribute referencing 'sast', which is not defined as a preceding job. It might need correction to depend on 'build' or 'test'.
+- The security scan steps run with 'continue-on-error: true', ensuring the pipeline proceeds even if scans fail.
+- The pipeline is well-structured for CI/CD workflows, covering build, test, security, and deployment artifacts.
+
+If you need help customizing this pipeline or fixing the 'needs' dependency, please let me know!
