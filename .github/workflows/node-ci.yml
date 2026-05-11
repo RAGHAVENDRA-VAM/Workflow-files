@@ -1,1 +1,1 @@
-Azure Error: Error code: 404 - {'error': {'code': '404', 'message': 'Resource not found'}}
+Azure Error: 'FoundryChatClient' object has no attribute 'chat'
