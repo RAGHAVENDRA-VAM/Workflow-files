@@ -1,0 +1,133 @@
+Below is an example of a production-grade Terraform pipeline YAML file for Azure DevOps, using Azure as the cloud provider. This example assumes you're using Azure DevOps Pipelines for CI/CD. The pipeline will perform Terraform init, plan, and apply operations. 
+
+For this example, let's assume:
+- `your_resource_group` = `myProductionRG`
+- `your_resources` = An Azure Storage Account and an Azure Cosmos DB account.
+- `your_repo_name` = `myTerraformRepo`
+- `your_cloud_provider` = Azure
+
+First, ensure you have an Azure DevOps project set up with a service connection to Azure that has the necessary permissions to create resources.
+
+Here's a sample `.yml` pipeline file:
+
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  terraformVersion: '1.3.6'
+  azureSubscription: 'YourAzureServiceConnectionName'
+  resourceGroupName: 'myProductionRG'
+  location: 'West US 2'
+  storageAccountName: 'mystorageaccount'
+  cosmosDBAccountName: 'mycosmosdbaccount'
+
+stages:
+- stage: Validate
+  displayName: 'Validate Terraform Configuration'
+  jobs:
+  - job: validate
+    displayName: 'Validate'
+    steps:
+    - task: TerraformInstaller@0
+      displayName: 'Install Terraform $(terraformVersion)'
+      inputs:
+        terraformVersion: '$(terraformVersion)'
+
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform Init'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        backendServiceArm: '$(azureSubscription)'
+        backendAzureRmResourceGroupName: '$(resourceGroupName)'
+        backendAzureRmStorageAccountName: '$(storageAccountName)'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'terraform.tfstate'
+
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform Validate'
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+
+- stage: Build
+  displayName: 'Build and Plan Terraform Configuration'
+  dependsOn: Validate
+  jobs:
+  - job: build
+    displayName: 'Build and Plan'
+    steps:
+    - task: TerraformInstaller@0
+      displayName: 'Install Terraform $(terraformVersion)'
+      inputs:
+        terraformVersion: '$(terraformVersion)'
+
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform Init'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        backendServiceArm: '$(azureSubscription)'
+        backendAzureRmResourceGroupName: '$(resourceGroupName)'
+        backendAzureRmStorageAccountName: '$(storageAccountName)'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'terraform.tfstate'
+
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform Plan'
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        commandOptions: '-out=tfplan'
+        environmentServiceNameAzureRM: '$(azureSubscription)'
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Terraform Plan'
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/terraform/tfplan'
+        artifact: 'tfplan'
+        publishLocation: 'pipeline'
+
+- stage: Deploy
+  displayName: 'Deploy Terraform Configuration'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: deploy
+    displayName: 'Deploy'
+    environment: 'prod'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Terraform Plan'
+            inputs:
+              buildType: 'current'
+              artifactName: 'tfplan'
+              targetPath: '$(System.DefaultWorkingDirectory)/terraform'
+
+          - task: TerraformInstaller@0
+            displayName: 'Install Terraform $(terraformVersion)'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+
+          - task: TerraformTaskV2@2
+            displayName: 'Terraform Apply'
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+              commandOptions: 'tfplan'
+              environmentServiceNameAzureRM: '$(azureSubscription)'
+
+And here's a sample Terraform configuration (`main.tf`) that creates an Azure Storage Account and an Azure Cosmos DB account
