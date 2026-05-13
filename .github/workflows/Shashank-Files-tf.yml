@@ -2,16 +2,14 @@ trigger:
 - main
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: ubuntu-latest
 
 variables:
+  terraformVersion: '1.3.6'
   resourceGroup: 'hari_check1'
-  location: 'East US'
-  webAppName: 'webapp'
-  sqlServerName: 'sql'
-  repositoryName: 'Shashank-Files'
-  azureSubscription: 'your_azure_subscription'
-  terraformVersion: '1.2.5'
+  environment: 'prod'
+  webapp_name: 'webapp$(env)'
+  sql_name: 'sql$(env)'
 
 stages:
 - build
@@ -25,28 +23,38 @@ build:
     displayName: 'Build'
     steps:
     - task: TerraformInstaller@2
-      displayName: 'Install Terraform'
+      displayName: 'Install Terraform $(terraformVersion)'
       inputs:
         terraformVersion: '$(terraformVersion)'
     - task: TerraformTaskV2@2
-      displayName: 'Initialize Terraform'
+      displayName: 'Initialize'
       inputs:
         command: 'init'
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
-        environmentServiceName: '$(azureSubscription)'
+        workingDirectory: './'
+        environmentServiceName: ''
     - task: TerraformTaskV2@2
-      displayName: 'Validate Terraform'
+      displayName: 'Validate'
       inputs:
         command: 'validate'
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
+        workingDirectory: './'
+        environmentServiceName: ''
     - task: TerraformTaskV2@2
-      displayName: 'Plan Terraform'
+      displayName: 'Plan'
       inputs:
         command: 'plan'
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
-        environmentServiceName: '$(azureSubscription)'
-      outputs:
-        plan: '$(System.DefaultWorkingDirectory)/terraform.plan'
+        workingDirectory: './'
+        environmentServiceName: ''
+        arguments: '-var resource_group=$(resourceGroup) -var webapp_name=$(webapp_name) -var sql_name=$(sql_name)'
+    - task: PowerShell@2
+      displayName: 'Save Plan Output'
+      inputs:
+        targetType: 'inline'
+        script: 'terraform show -no-color > terraform.plan'
+    - task: UploadArtifact@2
+      displayName: 'Upload Artifact'
+      inputs:
+        artifactName: '$(environment)-plan'
+        paths: 'terraform.plan'
 
 deploy:
   stage: deploy
@@ -55,49 +63,36 @@ deploy:
   jobs:
   - deployment: deploy
     displayName: 'Deploy'
-    environment: 'production'
+    environment: '$(environment)'
     pool:
-      vmImage: 'ubuntu-latest'
+      vmImage: ubuntu-latest
     strategy:
       runOnce:
         deploy:
           steps:
+          - task: DownloadArtifact@2
+            displayName: 'Download Artifact'
+            inputs:
+              artifactName: '$(environment)-plan'
+              downloadPath: './'
+          - task: TerraformInstaller@2
+            displayName: 'Install Terraform $(terraformVersion)'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
           - task: TerraformTaskV2@2
-            displayName: 'Apply Terraform'
+            displayName: 'Apply'
             inputs:
               command: 'apply'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              environmentServiceName: '$(azureSubscription)'
-              commandOptions: '$(build.plan)'
-          - task: AzureCLI@2
-            displayName: 'Create Web App'
+              workingDirectory: './'
+              environmentServiceName: ''
+              arguments: '-var resource_group=$(resourceGroup) -var webapp_name=$(webapp_name) -var sql_name=$(sql_name) -auto-approve'
+          - task: PowerShell@2
+            displayName: 'Save State'
             inputs:
-              azureSubscription: '$(azureSubscription)'
-              script: |
-                az webapp create --name $(webAppName) --resource-group $(resourceGroup) --location $(location)
-          - task: AzureCLI@2
-            displayName: 'Create SQL Server'
+              targetType: 'inline'
+              script: 'terraform show -no-color > terraform.state'
+          - task: UploadArtifact@2
+            displayName: 'Upload State'
             inputs:
-              azureSubscription: '$(azureSubscription)'
-              script: |
-                az sql server create --name $(sqlServerName) --resource-group $(resourceGroup) --location $(location)
-
-          - task: AzureCLI@2
-            displayName: 'Configure Web App'
-            inputs:
-              azureSubscription: '$(azureSubscription)'
-              script: |
-                az webapp config appsettings set --name $(webAppName) --resource-group $(resourceGroup) --settings DB_HOST=$(sqlServerName).database.windows.net DB_USER=user DB_PASSWORD=password
-          - task: AzureCLI@2
-            displayName: 'Configure SQL Server'
-            inputs:
-              azureSubscription: '$(azureSubscription)'
-              script: |
-                az sql server firewall-rule create --name $(sqlServerName) --resource-group $(resourceGroup) --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
-
-          - task: AzureCLI@2
-            displayName: 'Grant SQL Permission'
-            inputs:
-              azureSubscription: '$(azureSubscription)'
-              script: |
-                az sql db permission create --name $(sqlServerName) --resource-group $(resourceGroup) --database $(webAppName) --user user --password password --permissions SELECT,INSERT,UPDATE,DELETE
+              artifactName: '$(environment)-state'
+              paths: 'terraform.state'
