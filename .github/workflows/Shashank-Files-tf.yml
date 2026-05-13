@@ -1,0 +1,103 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  resourceGroup: 'hari_check1'
+  location: 'East US'
+  webAppName: 'webapp'
+  sqlServerName: 'sql'
+  repositoryName: 'Shashank-Files'
+  azureSubscription: 'your_azure_subscription'
+  terraformVersion: '1.2.5'
+
+stages:
+- build
+- deploy
+
+build:
+  stage: build
+  displayName: 'Build'
+  jobs:
+  - job: build
+    displayName: 'Build'
+    steps:
+    - task: TerraformInstaller@2
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: '$(terraformVersion)'
+    - task: TerraformTaskV2@2
+      displayName: 'Initialize Terraform'
+      inputs:
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+        environmentServiceName: '$(azureSubscription)'
+    - task: TerraformTaskV2@2
+      displayName: 'Validate Terraform'
+      inputs:
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+    - task: TerraformTaskV2@2
+      displayName: 'Plan Terraform'
+      inputs:
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+        environmentServiceName: '$(azureSubscription)'
+      outputs:
+        plan: '$(System.DefaultWorkingDirectory)/terraform.plan'
+
+deploy:
+  stage: deploy
+  displayName: 'Deploy'
+  dependsOn: build
+  jobs:
+  - deployment: deploy
+    displayName: 'Deploy'
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: TerraformTaskV2@2
+            displayName: 'Apply Terraform'
+            inputs:
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              environmentServiceName: '$(azureSubscription)'
+              commandOptions: '$(build.plan)'
+          - task: AzureCLI@2
+            displayName: 'Create Web App'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              script: |
+                az webapp create --name $(webAppName) --resource-group $(resourceGroup) --location $(location)
+          - task: AzureCLI@2
+            displayName: 'Create SQL Server'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              script: |
+                az sql server create --name $(sqlServerName) --resource-group $(resourceGroup) --location $(location)
+
+          - task: AzureCLI@2
+            displayName: 'Configure Web App'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              script: |
+                az webapp config appsettings set --name $(webAppName) --resource-group $(resourceGroup) --settings DB_HOST=$(sqlServerName).database.windows.net DB_USER=user DB_PASSWORD=password
+          - task: AzureCLI@2
+            displayName: 'Configure SQL Server'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              script: |
+                az sql server firewall-rule create --name $(sqlServerName) --resource-group $(resourceGroup) --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+
+          - task: AzureCLI@2
+            displayName: 'Grant SQL Permission'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              script: |
+                az sql db permission create --name $(sqlServerName) --resource-group $(resourceGroup) --database $(webAppName) --user user --password password --permissions SELECT,INSERT,UPDATE,DELETE
