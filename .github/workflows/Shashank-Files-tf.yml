@@ -1,4 +1,5 @@
-Here's a production-grade Terraform pipeline YAML for Azure:
+Here's a sample production-grade Terraform pipeline YAML file for Azure:
+
 trigger:
 - main
 
@@ -7,12 +8,9 @@ pool:
 
 variables:
   terraformVersion: '1.2.5'
-  resourceGroupName: 'hari_check1'
-  location: 'East US'
-  storageAccountName: 'haristorageaccount'
-  appServiceName: 'hariappservice'
-  sqlServerName: 'harisqlserver'
-  sqlDatabaseName: 'harisqldatabase'
+  azureSubscription: 'Your Azure Subscription'
+  resourceGroup: 'hari_check1'
+  repositoryName: 'Shashank-Files'
 
 stages:
 - build
@@ -25,98 +23,80 @@ build:
   - job: build
     displayName: 'Build'
     steps:
-    - task: TerraformInstaller@0
+    - task: TerraformInstaller@2
       displayName: 'Install Terraform'
       inputs:
         terraformVersion: '$(terraformVersion)'
-    - task: TerraformTaskV2@2
+    - task: Terraform@2
       displayName: 'Initialize Terraform'
       inputs:
         command: 'init'
         workingDirectory: '$(System.DefaultWorkingDirectory)'
-        environmentServiceName: 'Azure'
-    - task: TerraformTaskV2@2
-      displayName: 'Validate Terraform'
+        environmentServiceName: '$(azureSubscription)'
+    - task: Terraform@2
+      displayName: 'Validate Terraform Configuration'
       inputs:
         command: 'validate'
         workingDirectory: '$(System.DefaultWorkingDirectory)'
-    - task: TerraformTaskV2@2
-      displayName: 'Plan Terraform'
+    - task: Terraform@2
+      displayName: 'Plan Terraform Deployment'
       inputs:
         command: 'plan'
         workingDirectory: '$(System.DefaultWorkingDirectory)'
-        environmentServiceName: 'Azure'
+        environmentServiceName: '$(azureSubscription)'
+      outputs:
+        plan: '$(System.DefaultWorkingDirectory)/terraform.plan'
 
 deploy:
   stage: deploy
   displayName: 'Deploy'
   dependsOn: build
   jobs:
-  - job: deploy
+  - deployment: deploy
     displayName: 'Deploy'
-    steps:
-    - task: TerraformTaskV2@2
-      displayName: 'Apply Terraform'
-      inputs:
-        command: 'apply'
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
-        environmentServiceName: 'Azure'
-    - task: AzureCLI@2
-      displayName: 'Create Storage Account'
-      inputs:
-        azureSubscription: 'your_azure_subscription'
-        script: |
-          az storage account create --name $(storageAccountName) --resource-group $(resourceGroupName) --location $(location) --sku Standard_LRS
-    - task: AzureCLI@2
-      displayName: 'Create App Service'
-      inputs:
-        azureSubscription: 'your_azure_subscription'
-        script: |
-          az appservice plan create --name $(appServiceName) --resource-group $(resourceGroupName) --location $(location) --sku FREE
-          az webapp create --name $(appServiceName) --resource-group $(resourceGroupName) --location $(location) --plan $(appServiceName)
-    - task: AzureCLI@2
-      displayName: 'Create SQL Server'
-      inputs:
-        azureSubscription: 'your_azure_subscription'
-        script: |
-          az sql server create --name $(sqlServerName) --resource-group $(resourceGroupName) --location $(location) --admin-user 'your_admin_username' --admin-password 'your_admin_password'
-    - task: AzureCLI@2
-      displayName: 'Create SQL Database'
-      inputs:
-        azureSubscription: 'your_azure_subscription'
-        script: |
-          az sql db create --name $(sqlDatabaseName) --resource-group $(resourceGroupName) --server $(sqlServerName) --edition Basic
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: Terraform@2
+            displayName: 'Apply Terraform Deployment'
+            inputs:
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              environmentServiceName: '$(azureSubscription)'
+              commandOptions: '-auto-approve'
+          - task: AzureCLI@2
+            displayName: 'Create Resource Group'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              script: |
+                az group create --name $(resourceGroup) --location "East US"
+          - task: AzureCLI@2
+            displayName: 'Create Repository'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              script: |
+                az storage account create --name $(repositoryName) --resource-group $(resourceGroup) --location "East US" --sku Standard_LRS
+                az storage share create --name $(repositoryName) --resource-group $(resourceGroup) --account-name $(repositoryName)
 
-resources:
-  repositories:
-  - repository: Shashank-Files
-    type: git
-    endpoint: 'your_azure_devops_endpoint'
-    fetchTags: true
-This pipeline has two stages: build and deploy. The build stage initializes, validates, and plans the Terraform configuration, while the deploy stage applies the Terraform configuration and creates the required resources in Azure.
+Please replace `'Your Azure Subscription'` with your actual Azure subscription name.
 
-Note that you'll need to replace the placeholders with your actual values:
+This YAML file includes the following stages and tasks:
 
-* `your_azure_subscription`: your Azure subscription name
-* `your_admin_username` and `your_admin_password`: the admin username and password for the SQL server
-* `your_azure_devops_endpoint`: the endpoint for your Azure DevOps organization
+1. **Build Stage**:
+   - Installs Terraform.
+   - Initializes the Terraform working directory.
+   - Validates the Terraform configuration.
+   - Plans the Terraform deployment.
 
-Also, make sure to update the `terraformVersion` variable to the version of Terraform you're using.
+2. **Deploy Stage**:
+   - Applies the Terraform deployment plan.
+   - Creates a resource group named `'hari_check1'`.
+   - Creates a storage account and a file share named `'Shashank-Files'` in the resource group.
 
-In your Terraform configuration file (e.g., `main.tf`), you'll need to define the resources you want to create:
-provider "azurerm" {
-  version = "2.94.0"
-  features {}
-}
+Note that the `Terraform@2` task is used for Terraform operations, and the `AzureCLI@2` task is used for Azure CLI operations.
 
-resource "azurerm_resource_group" "example" {
-  name     = var.resourceGroupName
-  location = var.location
-}
-
-resource "azurerm_storage_account" "example" {
-  name                     = var.storageAccountName
-  resource_group_name      = azurerm_resource_group.example.name
-  location                 = azurerm_resource_group.example.location
-  account_tier             = "Standard"
-  account_replication
+Make sure to configure your Azure service connection in Azure DevOps and update the `azureSubscription` variable with the name of your Azure service connection. Also, ensure that the Azure service connection has the necessary permissions to create resources in your Azure subscription.
