@@ -1,31 +1,28 @@
 variable "app_name" {
   description = "Web app name (must be globally unique)"
   type        = string
+  default     = "my-web-app"
 }
 
 variable "location" {
   description = "Azure region"
   type        = string
+  default     = "eastus"
 }
 
 variable "resource_group_name" {
   description = "Resource group name"
   type        = string
-}
-
-variable "app_service_sku" {
-  description = "App Service Plan SKU (e.g., B1, B2, S1, P1v3, P2v3)"
-  type        = string
-}
-
-# ─── Resource Group Details ─────────────────────────────────────────────────
-
-variable "resource_group_location" {
-  description = "Resource group location"
-  type        = string
+  default     = "myResourceGroup"
 }
 
 # ─── App Service Plan ────────────────────────────────────────────────────────
+
+variable "sku_name" {
+  description = "App Service Plan SKU (e.g., B1, B2, S1, P1v3, P2v3)"
+  type        = string
+  default     = "S1"
+}
 
 variable "os_type" {
   description = "OS type: Linux or Windows"
@@ -178,4 +175,5 @@ variable "backup_retention_days" {
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
-variable "auth_settings"
+variable "auth_settings" {
+  description
