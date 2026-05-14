@@ -1,0 +1,131 @@
+Here's an example of a Terraform pipeline YAML file for Azure:
+
+---
+name: Terraform Azure Infra Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  TF_VERSION: "1.7.5"
+  RESOURCE_GROUP: "my-resource-group"
+  RESOURCE: "app_service"
+  REPOSITORY: "Shashank-workflow"
+
+jobs:
+  terraform:
+    name: Terraform Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout Code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Install Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # Azure Login
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Set Azure Credentials as Environment Variables
+      - name: Set Azure Credentials
+        env:
+          CLIENT_ID: ${{ secrets.client_id }}
+          CLIENT_SECRET: ${{ secrets.client_secret }}
+          TENANT_ID: ${{ secrets.tenant_id }}
+          SUBSCRIPTION_ID: ${{ secrets.subscription_id }}
+        run: |
+          echo "Client ID: $CLIENT_ID"
+          echo "Client Secret: $CLIENT_SECRET"
+          echo "Tenant ID: $TENANT_ID"
+          echo "Subscription ID: $SUBSCRIPTION_ID"
+
+      # Terraform Init
+      - name: Terraform Init
+        run: terraform init
+
+      # Terraform Validate
+      - name: Terraform Validate
+        run: terraform validate
+
+      # Terraform Plan
+      - name: Terraform Plan
+        run: terraform plan
+
+      # Terraform Apply
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+Please note that you should replace the `secrets.AZURE_CREDENTIALS`, `secrets.client_id`, `secrets.client_secret`, `secrets.tenant_id`, and `secrets.subscription_id` with your actual Azure credentials stored as secrets in your GitHub repository.
+
+Here's how you can store these credentials as secrets:
+
+1. Go to your GitHub repository settings.
+2. Click on "Actions" in the left-hand menu.
+3. Click on "Secrets" in the left-hand menu.
+4. Click on "New secret".
+5. Add your Azure credentials as secrets, using the names `AZURE_CREDENTIALS`, `client_id`, `client_secret`, `tenant_id`, and `subscription_id`.
+
+Also, ensure that your Terraform configuration files are in the root of your repository, and that they are configured to use the Azure provider with the correct credentials.
+
+Example `main.tf` file:
+provider "azurerm" {
+  client_id = var.client_id
+  client_secret = var.client_secret
+  tenant_id = var.tenant_id
+  subscription_id = var.subscription_id
+}
+
+resource "azurerm_resource_group" "example" {
+  name     = var.resource_group
+  location = "West US"
+}
+
+resource "azurerm_app_service" "example" {
+  name                = var.resource
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  app_service_plan_name = "example-app-service-plan"
+}
+
+Example `variables.tf` file:
+variable "client_id" {
+  type = string
+}
+
+variable "client_secret" {
+  type = string
+}
+
+variable "tenant_id" {
+  type = string
+}
+
+variable "subscription_id" {
+  type = string
+}
+
+variable "resource_group" {
+  type = string
+  default = "my-resource-group"
+}
+
+variable "resource" {
+  type = string
+  default = "app_service"
+}
+
+Example `terraform.tfvars` file:
+client_id = env.CLIENT_ID
+client_secret = env.CLIENT_SECRET
+tenant_id = env.TENANT_ID
+subscription_id = env.SUBSCRIPTION_ID
