@@ -1,6 +1,6 @@
 # terraform.tfvars
 
-app_name           = "mywebapp123456"
+app_name           = "mywebapp7564"
 location           = "eastus"
 resource_group_name = "my-resource-group"
 
