@@ -12,10 +12,6 @@ env:
   APP_SERVICE: "app_service"
   APP_SERVICE_PLAN: "app_service_plan"
   REPOSITORY: "Shashank-workflow"
-  CLIENT_ID: ${{ secrets.client_id }}
-  CLIENT_SECRET: ${{ secrets.client_secret }}
-  TENANT_ID: ${{ secrets.tenant_id }}
-  SUBSCRIPTION_ID: ${{ secrets.subscription_id }}
 
 jobs:
   terraform:
@@ -23,37 +19,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout Code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Install Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # Azure Login
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.client_id }}
-          client-secret: ${{ secrets.client_secret }}
-          tenant-id: ${{ secrets.tenant_id }}
-          subscription-id: ${{ secrets.subscription_id }}
+          client_id: ${{ secrets.client_id }}
+          client_secret: ${{ secrets.client_secret }}
+          tenant_id: ${{ secrets.tenant_id }}
+          subscription_id: ${{ secrets.subscription_id }}
 
-      # Terraform Init
       - name: Terraform Init
         run: terraform init
 
-      # Terraform Validate
       - name: Terraform Validate
         run: terraform validate
 
-      # Terraform Plan
       - name: Terraform Plan
         run: terraform plan
 
-      # Terraform Apply
       - name: Terraform Apply
         run: terraform apply -auto-approve
