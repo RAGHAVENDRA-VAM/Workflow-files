@@ -6,10 +6,11 @@ pool:
 
 variables:
   resourceGroup: 'hari_check1'
-  webapp: 'webapp'
-  repository: 'Simple_Insurance_portal'
-  environment: 'prod'
+  appName: 'webapp'
+  repositoryName: 'Simple_Insurance_portal'
+  azureSubscription: 'your_azure_subscription'
   terraformVersion: '1.2.5'
+  environment: 'production'
 
 stages:
 - build
@@ -22,34 +23,38 @@ build:
   - job: build
     displayName: 'Build'
     steps:
-    - task: TerraformInstaller@0
+    - task: TerraformInstaller@2
       displayName: 'Install Terraform'
       inputs:
         terraformVersion: '$(terraformVersion)'
     - task: TerraformTaskV2@2
-      displayName: 'Initialize'
+      displayName: 'Initialize Terraform'
       inputs:
         command: 'init'
         workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
-        environmentServiceName: ''
+        environmentServiceName: '$(azureSubscription)'
     - task: TerraformTaskV2@2
-      displayName: 'Validate'
+      displayName: 'Validate Terraform'
       inputs:
         command: 'validate'
         workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
-        environmentServiceName: ''
+        environmentServiceName: '$(azureSubscription)'
     - task: TerraformTaskV2@2
-      displayName: 'Plan'
+      displayName: 'Plan Terraform'
       inputs:
         command: 'plan'
         workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
-        environmentServiceName: ''
-        commandOptions: '-out=$(System.DefaultWorkingDirectory)/infrastructure/plan.tfplan'
-    - task: PowerShell@2
-      displayName: 'Save Plan'
+        environmentServiceName: '$(azureSubscription)'
+    - task: CopyFiles@2
+      displayName: 'Copy Terraform Plan'
       inputs:
-        targetType: 'inline'
-        script: 'Get-ChildItem -Path "$(System.DefaultWorkingDirectory)/infrastructure" -Filter "plan.tfplan" | Set-PipelineArtifact -Name "plan" -Path "$(System.DefaultWorkingDirectory)/infrastructure/plan.tfplan"'
+        contents: '**/terraform.tfplan'
+        targetFolder: '$(build.artifactstagingdirectory)/infrastructure'
+    - task: PublishBuildArtifact@2
+      displayName: 'Publish Artifact'
+      inputs:
+        artifactName: 'infrastructure'
+        path: '$(build.artifactstagingdirectory)/infrastructure'
 
 deploy:
   stage: deploy
@@ -65,24 +70,26 @@ deploy:
       runOnce:
         deploy:
           steps:
-          - task: TerraformInstaller@0
+          - task: DownloadBuildArtifact@2
+            displayName: 'Download Artifact'
+            inputs:
+              artifactName: 'infrastructure'
+              downloadPath: '$(System.DefaultWorkingDirectory)/infrastructure'
+          - task: TerraformInstaller@2
             displayName: 'Install Terraform'
             inputs:
               terraformVersion: '$(terraformVersion)'
           - task: TerraformTaskV2@2
-            displayName: 'Apply'
+            displayName: 'Apply Terraform'
             inputs:
               command: 'apply'
               workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
-              environmentServiceName: ''
-              commandOptions: '-auto-approve -state=$(System.DefaultWorkingDirectory)/infrastructure/terraform.tfstate $(System.DefaultWorkingDirectory)/infrastructure/plan.tfplan'
+              environmentServiceName: '$(azureSubscription)'
+              commandOptions: '-auto-approve'
           - task: AzureCLI@2
             displayName: 'Azure CLI'
             inputs:
-              azureSubscription: 'your_azure_subscription'
-              script: 'az group show -n $(resourceGroup)'
-          - task: PowerShell@2
-            displayName: 'Output Webapp URL'
-            inputs:
-              targetType: 'inline'
-              script: 'Write-Host "https://$(webapp).azurewebsites.net"'
+              azureSubscription: '$(azureSubscription)'
+              script: |
+                az webapp deployment slot create --resource-group $(resourceGroup) --name $(appName) --slot production
+              displayName: 'Create Deployment Slot'
