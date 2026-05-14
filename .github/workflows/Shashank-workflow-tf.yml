@@ -30,41 +30,51 @@ jobs:
           echo "Commit SHA: ${{ github.sha }}"
           echo "Workspace: ${{ github.workspace }}"
 
-      # Debug Current Directory
-      - name: Debug Current Directory
+      # Print Current Directory
+      - name: Print Current Directory
         run: |
           echo "Current Directory:"
           pwd
 
-      # Debug Repository Structure
-      - name: Debug Repository Structure
+      # Print Root Folder Contents
+      - name: Print Root Folder Contents
         run: |
-          echo "===== ROOT FILES ====="
+          echo "===== ROOT LEVEL CONTENTS ====="
           ls -la
 
-          echo "===== COMPLETE DIRECTORY TREE ====="
-          find . -type d
+      # Print All Folders in Repository
+      - name: Print All Folders
+        run: |
+          echo "===== ALL FOLDERS IN REPOSITORY ====="
+          find . -type d | sort
 
-          echo "===== COMPLETE FILE TREE ====="
-          find .
+      # Print All Files in Repository
+      - name: Print All Files
+        run: |
+          echo "===== ALL FILES IN REPOSITORY ====="
+          find . -type f | sort
 
-      # Debug Working Directory
-      - name: Debug Working Directory
+      # Verify Expected Terraform Directory
+      - name: Verify Terraform Working Directory
         run: |
           echo "Expected Working Directory:"
           echo "${{ env.WORKING_DIRECTORY }}"
 
           if [ -d "${{ env.WORKING_DIRECTORY }}" ]; then
-            echo "Directory EXISTS"
+            echo "SUCCESS: Directory exists"
           else
-            echo "Directory DOES NOT EXIST"
+            echo "ERROR: Directory does not exist"
+
+            echo "===== AVAILABLE TOP LEVEL DIRECTORIES ====="
+            find . -maxdepth 2 -type d | sort
+
             exit 1
           fi
 
-      # Debug Terraform Files
-      - name: Debug Terraform Files
+      # Print Terraform Folder Contents
+      - name: Print Terraform Folder Contents
         run: |
-          echo "Terraform Files:"
+          echo "===== TERRAFORM DIRECTORY CONTENTS ====="
           ls -la "${{ env.WORKING_DIRECTORY }}"
 
       # Install Terraform
