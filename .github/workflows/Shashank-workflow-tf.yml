@@ -38,7 +38,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -var="resource_group=${{ env.RESOURCE_GROUP }}" -var="resource=${{ env.RESOURCE }}"
+        run: terraform plan -var resource_group=${{ env.RESOURCE_GROUP }} -var resource=${{ env.RESOURCE }} -var repository=${{ env.REPOSITORY }}
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var="resource_group=${{ env.RESOURCE_GROUP }}" -var="resource=${{ env.RESOURCE }}"
+        run: terraform apply -auto-approve -var resource_group=${{ env.RESOURCE_GROUP }} -var resource=${{ env.RESOURCE }} -var repository=${{ env.REPOSITORY }}
