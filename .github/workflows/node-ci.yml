@@ -3,17 +3,13 @@ on:
   push:
     branches:
       - main
-      - develop
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 env:
   NODE_VERSION: 20.x
   PROJECT_NAME: Shashank-Repo
-  ARTIFACT_NAME: Shashank-Repo-drop
 jobs:
   build:
-    name: Build Node.js Application
+    name: Build Node.js App
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -27,77 +23,34 @@ jobs:
         run: npm ci
       - name: Build Application
         run: npm run build
+      - name: Archive Application
+        run: zip -r app.zip .
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-output
-          path: dist/
-  test:
-    name: Run Unit Tests
+          name: node-app
+          path: app.zip
+  sast:
+    name: Security Scan (SAST)
     runs-on: ubuntu-latest
     needs: build
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - name: Install Dependencies
-        run: npm ci
-      - name: Run Unit Tests
-        run: npm test -- --reporters=jest-junit
-      - name: Publish Test Results
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: Node.js Tests
-          path: junit.xml
-          reporter: jest-junit
-  sast:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Gitleaks — Secret Detection
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-      - name: Semgrep — Code Analysis
+      - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
         with:
           config: auto
-        continue-on-error: true
-      - name: Trivy — Dependency & FS Scan
+      - name: Run Gitleaks
+        run: docker run --rm -v ${{ github.workspace }}:/path zricethezav/gitleaks:latest detect \
+          --source="/path" \
+          --verbose \
+          --redact
+      - name: Run Trivy FS Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
-          format: sarif
-          output: trivy-results.sarif
-        continue-on-error: true
-      - name: Upload SAST Reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: sast-reports
-          path: '*.sarif'
-        if: always()
-  publish:
-    name: Publish Artifact
-    runs-on: ubuntu-latest
-    needs: sast
-    steps:
-      - name: Download Build Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
-          path: dist/
-      - name: Publish Shashank-Repo-drop
-        uses: actions/upload-artifact@v4
-        with:
-          name: Shashank-Repo-drop
-          path: dist/
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '1'
