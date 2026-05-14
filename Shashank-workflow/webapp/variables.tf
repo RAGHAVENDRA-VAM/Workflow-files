@@ -13,7 +13,7 @@ variable "location" {
 variable "resource_group_name" {
   description = "Resource group name"
   type        = string
-  default     = "myResourceGroup"
+  default     = "my-resource-group"
 }
 
 # ─── App Service Plan ────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ variable "resource_group_name" {
 variable "sku_name" {
   description = "App Service Plan SKU (e.g., B1, B2, S1, P1v3, P2v3)"
   type        = string
-  default     = "S1"
+  default     = "B1"
 }
 
 variable "os_type" {
