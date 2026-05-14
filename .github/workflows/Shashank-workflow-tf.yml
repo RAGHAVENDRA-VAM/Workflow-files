@@ -1,0 +1,153 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  resourceGroup: my-resource-group
+  appName: $(resourceGroup)-app-service
+  repositoryName: Shashank-workflow
+  clientId: $(client_id)
+  clientSecret: $(client_secret)
+  tenantId: $(tenant_id)
+  subscriptionId: $(subscription_id)
+
+stages:
+- build
+- deploy
+
+build:
+  stage: build
+  displayName: Build
+  jobs:
+  - job: build
+    displayName: Build
+    steps:
+    - task: TerraformInstaller@2
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: latest
+    - task: TerraformTaskV2@2
+      displayName: Initialize Terraform
+      inputs:
+        command: init
+        workingDirectory: $(System.DefaultWorkingDirectory)
+        environmentServiceName: Azure
+    - task: TerraformTaskV2@2
+      displayName: Validate Terraform
+      inputs:
+        command: validate
+        workingDirectory: $(System.DefaultWorkingDirectory)
+    - task: TerraformTaskV2@2
+      displayName: Plan Terraform
+      inputs:
+        command: plan
+        workingDirectory: $(System.DefaultWorkingDirectory)
+        environmentServiceName: Azure
+      displayName: Plan Infrastructure
+
+deploy:
+  stage: deploy
+  displayName: Deploy
+  dependsOn: build
+  jobs:
+  - deployment: deploy
+    displayName: Deploy
+    environment: production
+    pool:
+      vmImage: ubuntu-latest
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureCLI@2
+            displayName: Login to Azure
+            inputs:
+              azureSubscription: $(subscriptionId)
+              script: az account show
+          - task: TerraformTaskV2@2
+            displayName: Apply Terraform
+            inputs:
+              command: apply
+              workingDirectory: $(System.DefaultWorkingDirectory)
+              environmentServiceName: Azure
+            displayName: Apply Infrastructure
+          - task: TerraformTaskV2@2
+            displayName: Output Terraform
+            inputs:
+              command: output
+              workingDirectory: $(System.DefaultWorkingDirectory)
+            displayName: Output Infrastructure
+
+          - task: AzureAppServiceSettings@1
+            displayName: Configure App Service Settings
+            inputs:
+              azureSubscription: $(subscriptionId)
+              appName: $(appName)
+              resourceGroupName: $(resourceGroup)
+
+          - task: AzureAppServiceManagement@0
+            displayName: Configure App Service
+            inputs:
+              azureSubscription: $(subscriptionId)
+              appName: $(appName)
+              resourceGroupName: $(resourceGroup)
+
+          - task: AzureCLI@2
+            displayName: Azure CLI
+            inputs:
+              azureSubscription: $(subscriptionId)
+              script: |
+                az webapp deployment slot create --name $(appName) --resource-group $(resourceGroup) --slot production
+                az webapp deployment slot update --name $(appName) --resource-group $(resourceGroup) --slot production
+
+          - task: AzureRmWebAppDeployment@4
+            displayName: Deploy Web App
+            inputs:
+              azureSubscription: $(subscriptionId)
+              appName: $(appName)
+              resourceGroupName: $(resourceGroup)
+              package: $(System.DefaultWorkingDirectory)/
+
+          - task: AzureAppServiceSettings@1
+            displayName: Configure App Service Settings
+            inputs:
+              azureSubscription: $(subscriptionId)
+              appName: $(appName)
+              resourceGroupName: $(resourceGroup)
+
+          - task: AzureCLI@2
+            displayName: Azure CLI
+            inputs:
+              azureSubscription: $(subscriptionId)
+              script: |
+                az webapp config appsettings set --name $(appName) --resource-group $(resourceGroup) --settings CLIENT_ID=$(clientId) CLIENT_SECRET=$(clientSecret) TENANT_ID=$(tenantId) SUBSCRIPTION_ID=$(subscriptionId)
+
+          - task: AzureCLI@2
+            displayName: Azure CLI
+            inputs:
+              azureSubscription: $(subscriptionId)
+              script: |
+                az webapp deployment slot swap --name $(appName) --resource-group $(resourceGroup) --slot production
+
+          - task: AzureCLI@2
+            displayName: Azure CLI
+            inputs:
+              azureSubscription: $(subscriptionId)
+              script: |
+                az webapp config appsettings set --name $(appName) --resource-group $(resourceGroup) --settings WEBSITE_NODE_DEFAULT_VERSION=14.17.0
+
+          - task: AzureCLI@2
+            displayName: Azure CLI
+            inputs:
+              azureSubscription: $(subscriptionId)
+              script: |
+                az webapp log deployment list --name $(appName) --resource-group $(resourceGroup)
+
+          - task: AzureCLI@2
+            displayName: Azure CLI
+            inputs:
+              azureSubscription: $(subscriptionId)
+              script: |
+                az webapp deployment
