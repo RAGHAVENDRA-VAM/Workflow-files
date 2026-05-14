@@ -13,8 +13,15 @@ variable "resource_group_name" {
   type        = string
 }
 
-variable "sku" {
+variable "app_service_sku" {
   description = "App Service Plan SKU (e.g., B1, B2, S1, P1v3, P2v3)"
+  type        = string
+}
+
+# ─── Resource Group Details ─────────────────────────────────────────────────
+
+variable "resource_group_location" {
+  description = "Resource group location"
   type        = string
 }
 
@@ -171,10 +178,4 @@ variable "backup_retention_days" {
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
-variable "auth_settings" {
-  description = "Authentication settings (Easy Auth v2)"
-  type        = map(any)
-  default     = null
-}
-
-# ─── Deployment Slots ─────────────────────────────────────────
+variable "auth_settings"
