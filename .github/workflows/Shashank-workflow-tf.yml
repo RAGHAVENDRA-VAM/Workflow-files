@@ -9,9 +9,7 @@ on:
 env:
   TF_VERSION: "1.7.5"
   RESOURCE_GROUP: "my-resource-group"
-  APP_SERVICE: "app_service"
-  APP_INSIGHTS: "app_insights"
-  APP_SERVICE_PLAN: "app_service_plan"
+  RESOURCE: "app_service"
   REPOSITORY: "Shashank-workflow"
 
 jobs:
@@ -40,7 +38,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -var resource_group=${{ env.RESOURCE_GROUP }} -var resource=${{ env.RESOURCE }} -var repository=${{ env.REPOSITORY }}
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -var resource_group=${{ env.RESOURCE_GROUP }} -var resource=${{ env.RESOURCE }} -var repository=${{ env.REPOSITORY }}
