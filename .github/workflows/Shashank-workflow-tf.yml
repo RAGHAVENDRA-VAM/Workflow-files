@@ -2,16 +2,17 @@ trigger:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
 variables:
-  resourceGroup: my-resource-group
-  appName: $(resourceGroup)-app-service
-  location: East US
-  clientId: $(client_id)
-  clientSecret: $(client_secret)
-  tenantId: $(tenant_id)
-  subscriptionId: $(subscription_id)
+  resourceGroupName: 'my-resource-group'
+  location: 'West US'
+  appServicePlanName: 'my-app-service-plan'
+  appServiceName: 'my-app-service'
+  clientId: '$(client_id)'
+  clientSecret: '$(client_secret)'
+  tenantId: '$(tenant_id)'
+  subscriptionId: '$(subscription_id)'
 
 stages:
 - build
@@ -19,100 +20,82 @@ stages:
 
 build:
   stage: build
-  displayName: Build
+  displayName: 'Build'
   jobs:
   - job: build
-    displayName: Build
+    displayName: 'Build'
     steps:
-    - task: TerraformInstaller@2
-      displayName: Install Terraform
+    - task: Terraform@2
+      displayName: 'Initialize Terraform'
       inputs:
-        terraformVersion: latest
-    - task: TerraformTaskV2@2
-      displayName: Initialize Terraform
+        command: 'init'
+        workingDirectory: './'
+        environmentServiceName: 'Azure'
+    - task: Terraform@2
+      displayName: 'Validate Terraform'
       inputs:
-        command: init
-        workingDirectory: $(System.DefaultWorkingDirectory)
-        backendConfig: |
-          resource_group_name = "$(resourceGroup)"
-          storage_account_name = "$(appName)sa"
-          container_name       = "$(appName)container"
-          key                  = "$(appName).tfstate"
-    - task: TerraformTaskV2@2
-      displayName: Validate Terraform
+        command: 'validate'
+        workingDirectory: './'
+    - task: Terraform@2
+      displayName: 'Plan Terraform'
       inputs:
-        command: validate
-        workingDirectory: $(System.DefaultWorkingDirectory)
-    - task: TerraformTaskV2@2
-      displayName: Plan Terraform
-      inputs:
-        command: plan
-        workingDirectory: $(System.DefaultWorkingDirectory)
-        environmentServiceName: $(clientId)
-    - task: CopyFiles@2
-      displayName: Copy Terraform files
-      inputs:
-        contents: |
-          main.tf
-          variables.tf
-          outputs.tf
-        targetFolder: $(Build.ArtifactStagingDirectory)
+        command: 'plan'
+        workingDirectory: './'
+        environmentServiceName: 'Azure'
 
 deploy:
   stage: deploy
-  displayName: Deploy
+  displayName: 'Deploy'
   dependsOn: build
   jobs:
   - deployment: deploy
-    displayName: Deploy
-    environment: production
+    displayName: 'Deploy'
+    environment: 'production'
     pool:
-      vmImage: ubuntu-latest
+      vmImage: 'ubuntu-latest'
     strategy:
       runOnce:
         deploy:
           steps:
-          - task: TerraformInstaller@2
-            displayName: Install Terraform
+          - task: AzureLogin@2
+            displayName: 'Login to Azure'
             inputs:
-              terraformVersion: latest
-          - task: TerraformTaskV2@2
-            displayName: Apply Terraform
+              clientId: '$(client_id)'
+              clientSecret: '$(client_secret)'
+              tenantId: '$(tenant_id)'
+              subscriptionId: '$(subscription_id)'
+          - task: Terraform@2
+            displayName: 'Apply Terraform'
             inputs:
-              command: apply
-              workingDirectory: $(System.DefaultWorkingDirectory)
-              environmentServiceName: $(clientId)
-          - task: TerraformTaskV2@2
-            displayName: Output Terraform
+              command: 'apply'
+              workingDirectory: './'
+              environmentServiceName: 'Azure'
+          - task: Terraform@2
+            displayName: 'Output Terraform'
             inputs:
-              command: output
-              workingDirectory: $(System.DefaultWorkingDirectory)
+              command: 'output'
+              workingDirectory: './'
 
-          - task: AzureAppServiceSettings@1
-            displayName: Configure App Service settings
+          - task: AzureCLI@2
+            displayName: 'Create Resource Group'
             inputs:
-              azureSubscription: $(subscriptionId)
-              appName: $(appName)
-              resourceGroupName: $(resourceGroup)
+              azureSubscription: '$(subscriptionId)'
+              script: |
+                az group create --name $(resourceGroupName) --location $(location)
+              workingDirectory: './'
 
-          - task: AzureAppServiceManagement@0
-            displayName: Configure App Service management
+          - task: AzureCLI@2
+            displayName: 'Create App Service Plan'
             inputs:
-              azureSubscription: $(subscriptionId)
-              appName: $(appName)
-              resourceGroupName: $(resourceGroup)
+              azureSubscription: '$(subscriptionId)'
+              script: |
+                az appservice plan create --name $(appServicePlanName) --resource-group $(resourceGroupName) --location $(location) --sku FREE
+              workingDirectory: './'
 
-          - task: AzureRmWebAppDeployment@4
-            displayName: Deploy App Service
+          - task: AzureCLI@2
+            displayName: 'Create App Service'
             inputs:
-              azureSubscription: $(subscriptionId)
-              appName: $(appName)
-              resourceGroupName: $(resourceGroup)
-              package: $(System.DefaultWorkingDirectory)/**/*.zip
-
-          - task: AzureAppServiceSettings@1
-            displayName: Configure App Service settings after deployment
-            inputs:
-              azureSubscription: $(subscriptionId)
-              appName: $(appName)
-              resourceGroupName: $(resourceGroup)
+              azureSubscription: '$(subscriptionId)'
+              script: |
+                az webapp create --name $(appServiceName) --resource-group $(resourceGroupName) --location $(location) --plan $(appServicePlanName)
+              workingDirectory: './'
