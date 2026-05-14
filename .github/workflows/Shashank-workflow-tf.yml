@@ -9,7 +9,9 @@ on:
 env:
   TF_VERSION: "1.7.5"
   RESOURCE_GROUP: "my-resource-group"
-  RESOURCE: "app_service"
+  APP_SERVICE: "app_service"
+  APP_INSIGHTS: "app_insights"
+  APP_SERVICE_PLAN: "app_service_plan"
   REPOSITORY: "Shashank-workflow"
 
 jobs:
