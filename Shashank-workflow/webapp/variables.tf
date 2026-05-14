@@ -173,6 +173,3 @@ variable "backup_retention_days" {
   default     = 30
 }
 
-# ─── Auth ────────────────────────────────────────────────────────────────────
-
-variable "auth_settings" {
