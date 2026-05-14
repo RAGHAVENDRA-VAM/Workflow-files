@@ -9,8 +9,7 @@ on:
 env:
   TF_VERSION: "1.7.5"
   RESOURCE_GROUP: "my-resource-group"
-  APP_SERVICE_PLAN: "app-service-plan"
-  APP_SERVICE: "app-service"
+  RESOURCE: "app_service"
   REPOSITORY: "Shashank-workflow"
   CLIENT_ID: ${{ secrets.CLIENT_ID }}
   CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
@@ -34,28 +33,24 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.CLIENT_ID }} ${SECRETS.CLIENT_SECRET} ${SECRETS.TENANT_ID} ${SECRETS.SUBSCRIPTION_ID}
 
       - name: Terraform Init
         run: |
-          terraform init -backend-config="resource_group_name=$RESOURCE_GROUP"
-          terraform init -backend-config="storage_account_name=$APP_SERVICE"
-          terraform init -backend-config="container_name=$APP_SERVICE_PLAN"
-          terraform init -backend-config="key=terraform.tfstate"
+          terraform init -backend-config="resource_group_name=${RESOURCE_GROUP}" 
+          -backend-config="storage_account_name=${REPOSITORY}" 
+          -backend-config="container_name=${RESOURCE}" 
+          -backend-config="key=terraform.tfstate" 
+          -backend-config="tenant_id=${TENANT_ID}" 
+          -backend-config="subscription_id=${SUBSCRIPTION_ID}" 
+          -backend-config="client_id=${CLIENT_ID}" 
+          -backend-config="client_secret=${CLIENT_SECRET}"
 
       - name: Terraform Validate
         run: terraform validate
 
       - name: Terraform Plan
-        run: |
-          terraform plan -var "client_id=$CLIENT_ID" 
-          -var "client_secret=$CLIENT_SECRET" 
-          -var "tenant_id=$TENANT_ID" 
-          -var "subscription_id=$SUBSCRIPTION_ID"
+        run: terraform plan
 
       - name: Terraform Apply
-        run: |
-          terraform apply -auto-approve -var "client_id=$CLIENT_ID" 
-          -var "client_secret=$CLIENT_SECRET" 
-          -var "tenant_id=$TENANT_ID" 
-          -var "subscription_id=$SUBSCRIPTION_ID"
+        run: terraform apply -auto-approve
