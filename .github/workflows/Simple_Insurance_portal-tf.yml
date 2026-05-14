@@ -1,0 +1,98 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  resourceGroup: 'hari_check1'
+  location: 'East US'
+  webAppName: 'webapp'
+  repositoryName: 'Simple_Insurance_portal'
+  terraformVersion: '1.1.7'
+  azureSubscription: 'your_azure_subscription'
+  azureResourceGroupName: 'hari_check1'
+
+stages:
+- build
+- deploy
+
+build:
+  stage: build
+  displayName: 'Build'
+  jobs:
+  - job: build
+    displayName: 'Build'
+    steps:
+    - task: TerraformInstaller@0
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: '$(terraformVersion)'
+    - task: TerraformTaskV2@2
+      displayName: 'Initialize Terraform'
+      inputs:
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(repositoryName)'
+        environmentServiceName: '$(azureSubscription)'
+    - task: TerraformTaskV2@2
+      displayName: 'Validate Terraform'
+      inputs:
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(repositoryName)'
+        environmentServiceName: '$(azureSubscription)'
+    - task: TerraformTaskV2@2
+      displayName: 'Plan Terraform'
+      inputs:
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(repositoryName)'
+        environmentServiceName: '$(azureSubscription)'
+    - task: PowerShell@2
+      displayName: 'Save Terraform Plan'
+      inputs:
+        targetType: 'inline'
+        script: 'terraform plan -out=$(System.DefaultWorkingDirectory)/$(repositoryName)/plan.tfplan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(repositoryName)'
+    - task: PowerShell@2
+      displayName: 'Save Terraform Plan to Artifact'
+      inputs:
+        targetType: 'inline'
+        script: 'New-AzStorageBlob -File $(System.DefaultWorkingDirectory)/$(repositoryName)/plan.tfplan -Container "terraform-plans" -Blob "plan.tfplan" -Context $(azureStorageContext)'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(repositoryName)'
+    - task: PublishBuildArtifact@2
+      displayName: 'Publish Artifact'
+      inputs:
+        PathtoPublish: '$(System.DefaultWorkingDirectory)/$(repositoryName)/plan.tfplan'
+        ArtifactName: 'terraform-plan'
+        publishLocation: 'Container'
+
+deploy:
+  stage: deploy
+  displayName: 'Deploy'
+  dependsOn: build
+  jobs:
+  - deployment: deploy
+    displayName: 'Deploy'
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+          - task: TerraformTaskV2@2
+            displayName: 'Apply Terraform'
+            inputs:
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(repositoryName)'
+              environmentServiceName: '$(azureSubscription)'
+              commandOptions: '-auto-approve $(System.DefaultWorkingDirectory)/$(repositoryName)/plan.tfplan'
+          - task: AzureCLI@2
+            displayName: 'Azure CLI'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              script: 'az webapp deployment slot create --name $(webAppName) --resource-group $(azureResourceGroupName) --slot production'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(repositoryName)'
