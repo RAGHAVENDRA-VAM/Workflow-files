@@ -1,7 +1,7 @@
 variable "app_name" {
   description = "Web app name (must be globally unique)"
   type        = string
-  default     = "my-web-app"
+  default     = "my-web-app2"
 }
 
 variable "location" {
@@ -176,4 +176,3 @@ variable "backup_retention_days" {
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 variable "auth_settings" {
-  description
