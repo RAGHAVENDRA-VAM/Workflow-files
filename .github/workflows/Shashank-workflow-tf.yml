@@ -1,3 +1,5 @@
+# .github/workflows/terraform.yml
+
 name: Terraform Azure Infra Deployment
 
 on:
@@ -7,108 +9,39 @@ on:
 
 env:
   TF_VERSION: "1.7.5"
-  RESOURCE_GROUP: "my-resource-group"
-  RESOURCE: "webapp"
-  REPOSITORY: "Shashank-workflow"
-  WORKING_DIRECTORY: "Shashank-workflow/webapp"
+  WORKING_DIRECTORY: "shashank-workflow/webapp"
 
 jobs:
   terraform:
     name: Terraform Deployment
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
     steps:
-      # Checkout Code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Debug GitHub Context
-      - name: Debug GitHub Context
-        run: |
-          echo "Repository: ${{ github.repository }}"
-          echo "Branch Ref: ${{ github.ref }}"
-          echo "Commit SHA: ${{ github.sha }}"
-          echo "Workspace: ${{ github.workspace }}"
-
-      # Print Current Directory
-      - name: Print Current Directory
-        run: |
-          echo "Current Directory:"
-          pwd
-
-      # Print Root Folder Contents
-      - name: Print Root Folder Contents
-        run: |
-          echo "===== ROOT LEVEL CONTENTS ====="
-          ls -la
-
-      # Print All Folders in Repository
-      - name: Print All Folders
-        run: |
-          echo "===== ALL FOLDERS IN REPOSITORY ====="
-          find . -type d | sort
-
-      # Print All Files in Repository
-      - name: Print All Files
-        run: |
-          echo "===== ALL FILES IN REPOSITORY ====="
-          find . -type f | sort
-
-      # Verify Expected Terraform Directory
-      - name: Verify Terraform Working Directory
-        run: |
-          echo "Expected Working Directory:"
-          echo "${{ env.WORKING_DIRECTORY }}"
-
-          if [ -d "${{ env.WORKING_DIRECTORY }}" ]; then
-            echo "SUCCESS: Directory exists"
-          else
-            echo "ERROR: Directory does not exist"
-
-            echo "===== AVAILABLE TOP LEVEL DIRECTORIES ====="
-            find . -maxdepth 2 -type d | sort
-
-            exit 1
-          fi
-
-      # Print Terraform Folder Contents
-      - name: Print Terraform Folder Contents
-        run: |
-          echo "===== TERRAFORM DIRECTORY CONTENTS ====="
-          ls -la "${{ env.WORKING_DIRECTORY }}"
-
-      # Install Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # Verify Terraform Installation
-      - name: Verify Terraform Version
-        run: terraform version
-
-      # Azure Login
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Terraform Init
       - name: Terraform Init
         run: terraform init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
-      # Terraform Validate
       - name: Terraform Validate
         run: terraform validate
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
-      # Terraform Plan
       - name: Terraform Plan
-        run: terraform plan
-        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: terraform plan -var-file="terraform.tfvars"
 
-      # Terraform Apply
       - name: Terraform Apply
-        run: terraform apply -auto-approve
-        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: terraform apply -auto-approve -var-file="terraform.tfvars"
