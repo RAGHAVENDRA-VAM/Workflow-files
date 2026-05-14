@@ -6,10 +6,13 @@ pool:
 
 variables:
   resourceGroup: my-resource-group
-  clientId: $(client_id)
-  clientSecret: $(client_secret)
-  tenantId: $(tenant_id)
-  subscriptionId: $(subscription_id)
+  location: East US
+  appServiceName: $(resourceGroup)-app-service
+  appServicePlanName: $(resourceGroup)-app-service-plan
+  clientId: $[client_id]
+  clientSecret: $[client_secret]
+  tenantId: $[tenant_id]
+  subscriptionId: $[subscription_id]
 
 stages:
 - build
@@ -22,7 +25,7 @@ build:
   - job: build
     displayName: Build
     steps:
-    - task: TerraformInstaller@0
+    - task: TerraformInstaller@2
       displayName: Install Terraform
       inputs:
         terraformVersion: latest
@@ -57,24 +60,35 @@ deploy:
             displayName: Login to Azure
             inputs:
               azureSubscription: $(subscriptionId)
-              script: az account show
+              script: |
+                az account show
+              addSpnToEnvironment: true
           - task: TerraformTaskV2@2
             displayName: Apply Terraform
             inputs:
               command: apply
               workingDirectory: $(System.DefaultWorkingDirectory)
               environmentServiceName: Azure
+              commandOptions: -auto-approve
+          - task: TerraformTaskV2@2
+            displayName: Output Terraform
+            inputs:
+              command: output
+              workingDirectory: $(System.DefaultWorkingDirectory)
+              environmentServiceName: Azure
+
           - task: AzureAppServiceSettings@1
-            displayName: Configure App Service Settings
+            displayName: Configure App Service settings
             inputs:
               azureSubscription: $(subscriptionId)
               appName: $(appServiceName)
               resourceGroupName: $(resourceGroup)
+
           - task: AzureAppServiceSettings@1
-            displayName: Configure App Service Plan Settings
+            displayName: Configure App Service Plan settings
             inputs:
               azureSubscription: $(subscriptionId)
-              appServicePlanName: $(appServicePlanName)
+              appName: $(appServicePlanName)
               resourceGroupName: $(resourceGroup)
 
           - task: AzureCLI@2
@@ -83,14 +97,3 @@ deploy:
               azureSubscription: $(subscriptionId)
               script: |
                 az group show --name $(resourceGroup)
-                az webapp show --name $(appServiceName) --resource-group $(resourceGroup)
-                az appservice plan show --name $(appServicePlanName) --resource-group $(resourceGroup)
-
-          - task: AzureCLI@2
-            displayName: Azure CLI
-            inputs:
-              azureSubscription: $(subscriptionId)
-              script: |
-                echo "App Service Name: $(appServiceName)"
-                echo "App Service Plan Name: $(appServicePlanName)"
-                echo "Resource Group Name: $(resourceGroup)"
