@@ -5,12 +5,11 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  terraformVersion: '1.3.5'
-  azureSubscription: 'your_azure_subscription'
   resourceGroup: 'hari_check1'
-  location: 'East US'
-  storageAccountName: 'haristorageaccount'
-  appServiceName: 'hariappservice'
+  webapp: 'webapp'
+  repository: 'Simple_Insurance_portal'
+  environment: 'prod'
+  terraformVersion: '1.2.5'
 
 stages:
 - build
@@ -23,29 +22,34 @@ build:
   - job: build
     displayName: 'Build'
     steps:
-    - task: TerraformInstaller@2
+    - task: TerraformInstaller@0
       displayName: 'Install Terraform'
       inputs:
         terraformVersion: '$(terraformVersion)'
-    - task: Terraform@2
-      displayName: 'Initialize Terraform'
+    - task: TerraformTaskV2@2
+      displayName: 'Initialize'
       inputs:
         command: 'init'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/Simple_Insurance_portal/terraform'
-        environmentServiceName: '$(azureSubscription)'
-    - task: Terraform@2
-      displayName: 'Validate Terraform'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+        environmentServiceName: ''
+    - task: TerraformTaskV2@2
+      displayName: 'Validate'
       inputs:
         command: 'validate'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/Simple_Insurance_portal/terraform'
-    - task: Terraform@2
-      displayName: 'Plan Terraform'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+        environmentServiceName: ''
+    - task: TerraformTaskV2@2
+      displayName: 'Plan'
       inputs:
         command: 'plan'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/Simple_Insurance_portal/terraform'
-        environmentServiceName: '$(azureSubscription)'
-      outputs:
-        plan: '$(System.DefaultWorkingDirectory)/Simple_Insurance_portal/terraform/plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+        environmentServiceName: ''
+        commandOptions: '-out=$(System.DefaultWorkingDirectory)/infrastructure/plan.tfplan'
+    - task: PowerShell@2
+      displayName: 'Save Plan'
+      inputs:
+        targetType: 'inline'
+        script: 'Get-ChildItem -Path "$(System.DefaultWorkingDirectory)/infrastructure" -Filter "plan.tfplan" | Set-PipelineArtifact -Name "plan" -Path "$(System.DefaultWorkingDirectory)/infrastructure/plan.tfplan"'
 
 deploy:
   stage: deploy
@@ -54,36 +58,31 @@ deploy:
   jobs:
   - deployment: deploy
     displayName: 'Deploy'
-    environment: 'production'
+    environment: '$(environment)'
     pool:
       vmImage: 'ubuntu-latest'
     strategy:
       runOnce:
         deploy:
           steps:
-          - task: Terraform@2
-            displayName: 'Apply Terraform'
+          - task: TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+          - task: TerraformTaskV2@2
+            displayName: 'Apply'
             inputs:
               command: 'apply'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/Simple_Insurance_portal/terraform'
-              environmentServiceName: '$(azureSubscription)'
-              commandOptions: '--auto-approve'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+              environmentServiceName: ''
+              commandOptions: '-auto-approve -state=$(System.DefaultWorkingDirectory)/infrastructure/terraform.tfstate $(System.DefaultWorkingDirectory)/infrastructure/plan.tfplan'
           - task: AzureCLI@2
-            displayName: 'Create App Service'
+            displayName: 'Azure CLI'
             inputs:
-              azureSubscription: '$(azureSubscription)'
-              script: |
-                az appservice plan create --name $(appServiceName) --resource-group $(resourceGroup) --location $(location) --sku S1
-                az webapp create --name $(appServiceName) --resource-group $(resourceGroup) --location $(location) --plan $(appServiceName)
-          - task: AzureCLI@2
-            displayName: 'Create Storage Account'
+              azureSubscription: 'your_azure_subscription'
+              script: 'az group show -n $(resourceGroup)'
+          - task: PowerShell@2
+            displayName: 'Output Webapp URL'
             inputs:
-              azureSubscription: '$(azureSubscription)'
-              script: |
-                az storage account create --name $(storageAccountName) --resource-group $(resourceGroup) --location $(location) --sku Standard_LRS
-          - task: AzureCLI@2
-            displayName: 'Output App Service URL'
-            inputs:
-              azureSubscription: '$(azureSubscription)'
-              script: |
-                echo "https://$(appServiceName).azurewebsites.net"
+              targetType: 'inline'
+              script: 'Write-Host "https://$(webapp).azurewebsites.net"'
