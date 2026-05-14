@@ -1,12 +1,23 @@
 # main.tf
 
+provider "azurerm" {
+  features {}
+}
+
+# Resource Group
+resource "azurerm_resource_group" "this" {
+  name     = var.resource_group_name
+  location = var.location
+}
+
+# App Service Plan
 resource "azurerm_service_plan" "this" {
   name                = "${var.app_name}-plan"
   location            = var.location
-  resource_group_name = var.resource_group_name
+  resource_group_name = azurerm_resource_group.this.name
 
-  os_type     = var.os_type
-  sku_name    = var.sku_name
+  os_type      = var.os_type
+  sku_name     = var.sku_name
   worker_count = var.worker_count
 
   tags = merge(
@@ -17,17 +28,18 @@ resource "azurerm_service_plan" "this" {
   )
 }
 
+# Linux Web App
 resource "azurerm_linux_web_app" "this" {
   count = var.os_type == "Linux" ? 1 : 0
 
   name                = var.app_name
   location            = var.location
-  resource_group_name = var.resource_group_name
+  resource_group_name = azurerm_resource_group.this.name
 
   service_plan_id = azurerm_service_plan.this.id
 
-  https_only               = true
-  client_affinity_enabled  = var.client_affinity_enabled
+  https_only              = true
+  client_affinity_enabled = var.client_affinity_enabled
 
   site_config {
     always_on           = var.always_on
@@ -58,12 +70,13 @@ resource "azurerm_linux_web_app" "this" {
   )
 }
 
+# Windows Web App
 resource "azurerm_windows_web_app" "this" {
   count = var.os_type == "Windows" ? 1 : 0
 
   name                = var.app_name
   location            = var.location
-  resource_group_name = var.resource_group_name
+  resource_group_name = azurerm_resource_group.this.name
 
   service_plan_id = azurerm_service_plan.this.id
 
