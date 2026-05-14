@@ -33,18 +33,13 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.CLIENT_ID }} ${SECRETS.CLIENT_SECRET} ${SECRETS.TENANT_ID} ${SECRETS.SUBSCRIPTION_ID}
+          client-id: ${{ secrets.CLIENT_ID }}
+          client-secret: ${{ secrets.CLIENT_SECRET }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
 
       - name: Terraform Init
-        run: |
-          terraform init -backend-config="resource_group_name=${RESOURCE_GROUP}" 
-          -backend-config="storage_account_name=${REPOSITORY}" 
-          -backend-config="container_name=${RESOURCE}" 
-          -backend-config="key=terraform.tfstate" 
-          -backend-config="tenant_id=${TENANT_ID}" 
-          -backend-config="subscription_id=${SUBSCRIPTION_ID}" 
-          -backend-config="client_id=${CLIENT_ID}" 
-          -backend-config="client_secret=${CLIENT_SECRET}"
+        run: terraform init
 
       - name: Terraform Validate
         run: terraform validate
