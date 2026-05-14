@@ -1,0 +1,61 @@
+---
+name: Terraform Azure Infra Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  TF_VERSION: "1.7.5"
+  RESOURCE_GROUP: "my-resource-group"
+  APP_SERVICE_PLAN: "app-service-plan"
+  APP_SERVICE: "app-service"
+  REPOSITORY: "Shashank-workflow"
+  CLIENT_ID: ${{ secrets.CLIENT_ID }}
+  CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+  TENANT_ID: ${{ secrets.TENANT_ID }}
+  SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+
+jobs:
+  terraform:
+    name: Terraform Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init
+        run: |
+          terraform init -backend-config="resource_group_name=$RESOURCE_GROUP"
+          terraform init -backend-config="storage_account_name=$APP_SERVICE"
+          terraform init -backend-config="container_name=$APP_SERVICE_PLAN"
+          terraform init -backend-config="key=terraform.tfstate"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          terraform plan -var "client_id=$CLIENT_ID" 
+          -var "client_secret=$CLIENT_SECRET" 
+          -var "tenant_id=$TENANT_ID" 
+          -var "subscription_id=$SUBSCRIPTION_ID"
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve -var "client_id=$CLIENT_ID" 
+          -var "client_secret=$CLIENT_SECRET" 
+          -var "tenant_id=$TENANT_ID" 
+          -var "subscription_id=$SUBSCRIPTION_ID"
