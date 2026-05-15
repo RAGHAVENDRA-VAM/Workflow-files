@@ -9,6 +9,7 @@ on:
 env:
   TF_VERSION: "1.7.5"
   RESOURCE_GROUP: "my-resource-group"
+  RESOURCE: "app_service"
   REPOSITORY: "shashank-workflow"
   WORKING_DIRECTORY: "shashank-workflow/webapp"
 
@@ -35,7 +36,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       # Change Working Directory
-      - name: Change Directory
+      - name: Change Working Directory
         run: cd ${{ env.WORKING_DIRECTORY }}
 
       # Terraform Init
