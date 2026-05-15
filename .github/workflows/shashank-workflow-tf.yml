@@ -9,7 +9,7 @@ on:
 env:
   TF_VERSION: "1.7.5"
   RESOURCE_GROUP: "my-resource-group"
-  RESOURCE: "app service WebApp"
+  RESOURCE: "app_service"
   REPOSITORY: "shashank-workflow"
   WORKING_DIRECTORY: "./shashank-workflow/webapp"
 
