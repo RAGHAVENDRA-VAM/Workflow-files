@@ -11,7 +11,7 @@ env:
   RESOURCE_GROUP: "my-resource-group"
   RESOURCE: "app_service"
   REPO_NAME: "shashank-workflow"
-  WORKING_DIRECTORY: "./shashank-workflow/webapp"
+  WORKING_DIRECTORY: "shashank-workflow/webapp"
 
 jobs:
   terraform:
