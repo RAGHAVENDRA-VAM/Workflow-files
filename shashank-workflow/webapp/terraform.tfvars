@@ -1,6 +1,6 @@
 # terraform.tfvars
 
-app_name           = "vam-shashank-my-web-app"
+app_name           = "my-web-app-ui"
 location           = "eastus"
 resource_group_name = "my-resource-group"
 
