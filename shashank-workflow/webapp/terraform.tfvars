@@ -13,7 +13,9 @@ worker_count = 1
 always_on = true
 
 application_stack = {
-  python_version = "3.11"
+  language = "node 24"
+  framework = "react"
+  buildtool = "npm"
 }
 
 app_settings = {
