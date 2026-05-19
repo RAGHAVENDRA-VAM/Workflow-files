@@ -10,8 +10,8 @@ env:
   TF_VERSION: "1.7.5"
   RESOURCE_GROUP: "my-resource-group"
   RESOURCE: "webapp"
-  REPO_NAME: "shashank-workflow"
-  WORKING_DIR: "./${REPO_NAME}/${RESOURCE}"
+  REPOSITORY: "shashank-workflow"
+  WORKING_DIRECTORY: "./shashank-workflow/webapp"
 
 jobs:
   terraform:
@@ -37,7 +37,7 @@ jobs:
 
       # Change Working Directory
       - name: Change Directory
-        run: cd ${{ env.WORKING_DIR }}
+        run: cd ${{ env.WORKING_DIRECTORY }}
 
       # Terraform Init
       - name: Terraform Init
