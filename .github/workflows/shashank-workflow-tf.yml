@@ -34,10 +34,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Change Directory
+      # Change Working Directory
       - name: Change Directory
-        run: |
-          cd ./shashank-workflow/webapp
+        run: cd ./shashank-workflow/webapp
 
       # Terraform Init
       - name: Terraform Init
