@@ -9,8 +9,9 @@ on:
 env:
   TF_VERSION: "1.7.5"
   RESOURCE_GROUP: "my-resource-group"
-  RESOURCE: "webapp"
+  RESOURCE: "app_service"
   REPOSITORY: "shashank-workflow"
+  WORKING_DIRECTORY: "./shashank-workflow/vam-shashank-my-web-app"
 
 jobs:
   terraform:
@@ -36,24 +37,20 @@ jobs:
 
       # Change Working Directory
       - name: Change Directory
-        run: cd ./shashank-workflow/webapp
+        run: cd ${{ env.WORKING_DIRECTORY }}
 
       # Terraform Init
       - name: Terraform Init
         run: terraform init
-        working-directory: ./shashank-workflow/webapp
 
       # Terraform Validate
       - name: Terraform Validate
         run: terraform validate
-        working-directory: ./shashank-workflow/webapp
 
       # Terraform Plan
       - name: Terraform Plan
         run: terraform plan
-        working-directory: ./shashank-workflow/webapp
 
       # Terraform Apply
       - name: Terraform Apply
         run: terraform apply -auto-approve
-        working-directory: ./shashank-workflow/webapp
