@@ -12,7 +12,7 @@ application_stack = {
 
 app_settings = {
   ENVIRONMENT                    = "dev"
-  SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+  SCM_DO_BUILD_DURING_DEPLOYMENT = "false"
 }
 
 tags = {
