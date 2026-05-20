@@ -1,6 +1,6 @@
-app_name            = "Testingwebapp"
+app_name            = "my-web-app-ui"
 location            = "eastus"
-resource_group_name = "devops-maf"
+resource_group_name = "my-resource-group"
 sku_name            = "B1"
 os_type             = "Linux"
 worker_count        = 1
@@ -9,7 +9,6 @@ always_on           = true
 application_stack = {
   node_version = "20-lts"
   framework    = "react"
-  language     = "react"
   buildtool    = "npm"
 }
 
