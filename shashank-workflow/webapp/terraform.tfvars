@@ -7,7 +7,7 @@ worker_count        = 1
 always_on           = true
 
 application_stack = {
-  node_version = "20-lts"
+  node_version = "24"
 }
 
 app_settings = {
