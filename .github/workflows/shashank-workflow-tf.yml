@@ -19,38 +19,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout Code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Install Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # Azure Login
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Terraform Init
       - name: Terraform Init
-        working-directory: ./shashank-workflow/webapp
+        working-directory: './${{ env.REPOSITORY }}/${{ env.RESOURCE }}'
         run: terraform init
 
-      # Terraform Validate
       - name: Terraform Validate
-        working-directory: ./shashank-workflow/webapp
+        working-directory: './${{ env.REPOSITORY }}/${{ env.RESOURCE }}'
         run: terraform validate
 
-      # Terraform Plan
       - name: Terraform Plan
-        working-directory: ./shashank-workflow/webapp
+        working-directory: './${{ env.REPOSITORY }}/${{ env.RESOURCE }}'
         run: terraform plan
 
-      # Terraform Apply
       - name: Terraform Apply
-        working-directory: ./shashank-workflow/webapp
+        working-directory: './${{ env.REPOSITORY }}/${{ env.RESOURCE }}'
         run: terraform apply -auto-approve
